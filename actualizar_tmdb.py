@@ -1,52 +1,38 @@
-import os
-import requests
-import re
+import os, requests
 from supabase import create_client
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+# Configuración
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY"))
 TMDB_KEY = os.environ.get("TMDB_API_KEY")
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-def limpiar_titulo(titulo):
-    # 1. Quitamos todo lo que esté entre paréntesis o guiones
-    titulo = re.sub(r'\(.*\)', '', titulo)
-    titulo = titulo.split(':')[0].split('-')[0]
-    # 2. Quitamos palabras de formato que SensaCine añade
-    basura = ["4K", "VOSE", "ESTRENO", "DIGITAL", "3D"]
-    for palabra in basura:
-        titulo = titulo.replace(palabra, "")
-    return titulo.strip()
-
-def buscar_en_tmdb(titulo):
-    query = limpiar_titulo(titulo)
-    print(f"🔍 Buscando como: '{query}'") # Verás esto en los logs de GitHub
-    
-    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_KEY}&query={query}&language=es-ES"
-    
-    try:
-        r = requests.get(url, timeout=10).json()
-        if r.get('results'):
-            return str(r['results'][0]['id'])
-    except Exception as e:
-        print(f"❌ Error API: {e}")
-    return None
-
 def main():
+    # 1. Leer títulos de tu tabla (solo los que no tienen ID aún)
     res = supabase.table("peliculas").select("id", "titulo").is_("tmdb_id", "null").execute()
     
-    if not res.data:
-        print("✅ Todo al día.")
+    if not TMDB_KEY:
+        print("❌ ERROR: No se encuentra la TMDB_API_KEY en los Secrets de GitHub.")
         return
 
     for peli in res.data:
-        tmdb_id = buscar_en_tmdb(peli['titulo'])
-        if tmdb_id:
-            supabase.table("peliculas").update({"tmdb_id": tmdb_id}).eq("id", peli['id']).execute()
-            print(f"✔️ {peli['titulo']} -> ID: {tmdb_id}")
-        else:
-            print(f"⚠️ Fallo: {peli['titulo']}")
+        titulo = peli['titulo']
+        print(f"Buscando ID para: {titulo}...")
+
+        # 2. Buscar en TMDB de la forma más simple posible
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_KEY}&query={titulo}&language=es-ES"
+        
+        try:
+            r = requests.get(url).json()
+            if r.get('results'):
+                # Extraemos el ID (el mismo que ves en la URL de tu captura 313b60)
+                tmdb_id = str(r['results'][0]['id'])
+                
+                # 3. Pegar el ID en la columna tmdb_id de Supabase
+                supabase.table("peliculas").update({"tmdb_id": tmdb_id}).eq("id", peli['id']).execute()
+                print(f"✅ ID {tmdb_id} guardado para {titulo}")
+            else:
+                print(f"⚠️ No se encontró ID en TMDB para '{titulo}'")
+        except Exception as e:
+            print(f"❌ Error técnico con {titulo}: {e}")
 
 if __name__ == "__main__":
     main()
