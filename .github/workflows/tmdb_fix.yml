@@ -1,4 +1,26 @@
-- name: Rellenar IDs de TMDB
+name: Rellenar IDs de TMDB
+
+on:
+  schedule:
+    - cron: '30 8 * * *' # Se ejecuta 30 min después del otro bot
+  workflow_dispatch: # Botón para ejecutarlo a mano cuando quieras
+
+jobs:
+  run-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar librerías
+        run: pip install requests supabase
+
+      - name: Ejecutar script de actualización
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
