@@ -1,24 +1,17 @@
 name: Rellenar IDs de TMDB
-
 on:
-  workflow_dispatch: # Botón para ejecutarlo a mano
+  workflow_dispatch:
 
 jobs:
-  actualizar:
+  run-fix:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar repositorio
-        uses: actions/checkout@v3
-
-      - name: Configurar Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
-      - name: Instalar dependencias
-        run: pip install requests supabase
-
-      - name: Ejecutar Buscador de IDs
+      - run: pip install requests supabase
+      - name: Ejecutar
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
